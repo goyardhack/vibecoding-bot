@@ -45,3 +45,6 @@ PRO_DESCRIPTION = os.getenv(
     "PRO_DESCRIPTION",
     "10 платных уроков VibeCoding + обновления.",
 )
+
+# Контакт в разделе «Помощь» (можно задать в Bothost без правки кода)
+SUPPORT_USERNAME = os.getenv("SUPPORT_USERNAME", "amgdurov").lstrip("@")
