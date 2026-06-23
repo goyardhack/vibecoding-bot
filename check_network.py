@@ -1,13 +1,16 @@
 import asyncio
+import logging
 import sys
 
 from aiogram import Bot
 from aiogram.client.default import DefaultBotProperties
 from aiogram.client.session.aiohttp import AiohttpSession
 from aiogram.enums import ParseMode
-from aiogram.exceptions import TelegramNetworkError
+from aiogram.exceptions import TelegramNetworkError, TelegramUnauthorizedError
 
-from config import BOT_PROXY, BOT_TOKEN
+from config import BOT_PROXY, BOT_TOKEN, IS_BOTHOST
+
+logger = logging.getLogger(__name__)
 
 
 def create_bot() -> Bot:
@@ -19,33 +22,31 @@ def create_bot() -> Bot:
     )
 
 
-async def check_telegram_api() -> tuple[bool, str]:
-  if not BOT_TOKEN:
-    return False, "BOT_TOKEN не задан в .env"
+async def check_telegram_api(retries: int = 3) -> tuple[bool, str]:
+    if not BOT_TOKEN:
+        return False, (
+            "Токен не задан. В Bothost → {} добавь VIBECODING_TOKEN=токен от @BotFather"
+        )
 
-  bot = create_bot()
-  try:
-    me = await bot.get_me()
-    return True, f"Связь есть. Бот: @{me.username}"
-  except TelegramNetworkError as exc:
-    hint = (
-      "\n\nНе удаётся подключиться к api.telegram.org.\n"
-      "Что сделать:\n"
-      "1) Включи VPN на компьютере\n"
-      "2) Или укажи прокси в .env: BOT_PROXY=socks5://127.0.0.1:10808\n"
-      "   (порт смотри в настройках VPN — Clash, v2rayN, Hiddify и т.д.)\n"
-      "3) Запусти ПРОВЕРКА-СЕТИ.bat и пришли результат наставнику"
-    )
-    return False, f"{exc}{hint}"
-  finally:
-    await bot.session.close()
+    bot = create_bot()
+    last_error = "неизвестная ошибка"
 
-
-def main() -> None:
-  ok, message = asyncio.run(check_telegram_api())
-  print(message)
-  sys.exit(0 if ok else 1)
-
-
-if __name__ == "__main__":
-  main()
+    try:
+        for attempt in range(1, retries + 1):
+            try:
+                me = await bot.get_me()
+                return True, f"Связь есть. Бот: @{me.username}"
+            except TelegramUnauthorizedError:
+                return False, "Неверный BOT_TOKEN. Проверь токен в @BotFather и в панели Bothost."
+            except TelegramNetworkError as exc:
+                last_error = str(exc)
+                if attempt < retries:
+                    await asyncio.sleep(2)
+        hint = (
+            "\n\nНе удаётся подключиться к api.telegram.org.\n"
+            "На Bothost обычно не нужен VPN. Проверь токен и логи.\n"
+            "Локально: включи VPN или BOT_PROXY в .env."
+        )
+        return False, f"{last_error}{hint}"
+    finally:
+        await bot.session.close()

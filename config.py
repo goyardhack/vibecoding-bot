@@ -11,7 +11,25 @@ DATA_DIR = Path(os.getenv("DATA_DIR", str(BASE_DIR / "data")))
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 DB_PATH = DATA_DIR / "bot.db"
 
-BOT_TOKEN = os.getenv("BOT_TOKEN", "")
+def _read_bot_token() -> str:
+    """Bothost не даёт менять BOT_TOKEN вручную — используй VIBECODING_TOKEN."""
+    for key in (
+        "VIBECODING_TOKEN",
+        "BOT_TOKEN",
+        "TELEGRAM_BOT_TOKEN",
+        "API_TOKEN",
+        "BOT_API_TOKEN",
+        "TOKEN",
+    ):
+        value = os.getenv(key, "").strip()
+        if value:
+            return value
+    return ""
+
+
+BOT_TOKEN = _read_bot_token()
+# Bothost сам ставит BOT_ID — по нему понимаем, что бот на сервере
+IS_BOTHOST = bool(os.getenv("BOT_ID"))
 # Прокси если api.telegram.org недоступен (VPN-клиенты часто дают socks5://127.0.0.1:10808)
 BOT_PROXY = os.getenv("BOT_PROXY", "").strip()
 ADMIN_IDS = {
