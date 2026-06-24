@@ -1,0 +1,54 @@
+{
+  "items": [
+    {
+      "id": "cursor_start",
+      "question": "Cursor не запускает проект",
+      "answer": "1. Открой терминал в Cursor: Terminal → New Terminal.\n2. Перейди в папку проекта: cd путь/к/проекту\n3. Проверь, что есть нужные файлы (package.json или main.py).\n4. Для Python: python main.py или python bot.py\n5. Для Node: npm install, затем npm run dev\n6. Читай текст ошибки в терминале — скопируй и спроси AI в чате Cursor."
+    },
+    {
+      "id": "npm_error",
+      "question": "Ошибка npm install / npm ERR!",
+      "answer": "1. Проверь, что Node.js установлен: node -v и npm -v в терминале.\n2. Удали папку node_modules и файл package-lock.json.\n3. Запусти снова: npm install\n4. Если ошибка про права — запусти терминал от администратора (Windows).\n5. Если ошибка про версию Node — установи LTS с nodejs.org.\n6. Скопируй полный текст ERR! в AI-чат — он подскажет точное решение."
+    },
+    {
+      "id": "localhost",
+      "question": "Не открывается localhost",
+      "answer": "1. Убедись, что сервер запущен — в терминале должно быть «Running on...» или «Uvicorn running».\n2. Проверь правильный адрес: http://127.0.0.1:8000 или тот порт, что в логах.\n3. Не закрывай терминал — сервер работает, пока терминал открыт.\n4. Попробуй другой браузер или режим инкогнито.\n5. Если порт занят — закрой другие программы или смени порт в настройках.\n6. ERR_CONNECTION_REFUSED = сервер не запущен. Запусти проект заново."
+    },
+    {
+      "id": "white_screen",
+      "question": "Сайт открывается, но белый экран",
+      "answer": "1. Открой DevTools: F12 → вкладка Console.\n2. Посмотри красные ошибки — скопируй в AI.\n3. Проверь, что index.html в корне проекта и пути к CSS/JS верные.\n4. Если React/Vue — убедись, что npm run dev запущен, а не просто открыт HTML.\n5. Проверь, нет ли опечаток в id элементов и скриптах.\n6. Попроси AI: «Исправь белый экран, вот ошибка из консоли: ...»"
+    },
+    {
+      "id": "python_not_found",
+      "question": "python: command not found / бот не запускается",
+      "answer": "1. Установи Python 3.11+ с python.org (галочка «Add to PATH»).\n2. Перезапусти Cursor после установки.\n3. Проверь: python --version или py --version\n4. Создай виртуальное окружение: python -m venv .venv\n5. Активируй: .venv\\Scripts\\activate (Windows)\n6. Установи зависимости: pip install -r requirements.txt\n7. Запусти: python main.py"
+    },
+    {
+      "id": "module_not_found",
+      "question": "ModuleNotFoundError — нет модуля",
+      "answer": "1. Прочитай имя модуля в ошибке (например aiogram, dotenv).\n2. Активируй .venv, если есть: .venv\\Scripts\\activate\n3. Установи: pip install имя_модуля\n4. Или все сразу: pip install -r requirements.txt\n5. Убедись, что запускаешь Python из того же venv, где ставил пакеты.\n6. В Cursor выбери интерпретатор: Ctrl+Shift+P → Python: Select Interpreter → .venv"
+    },
+    {
+      "id": "bot_no_reply",
+      "question": "Бот не отвечает на /start в Telegram",
+      "answer": "1. Проверь, что бот запущен — в терминале должно быть «Run polling».\n2. Убедись, что пишешь именно своему боту (правильный @username).\n3. Проверь BOT_TOKEN в .env — токен от @BotFather.\n4. Если на сервере (Bothost) — глянь логи: жёлтый лист, ищи ошибки.\n5. После смены кода на GitHub — перезапусти бота на сервере.\n6. Подожди 2–3 минуты после деплоя — обновление не мгновенное."
+    },
+    {
+      "id": "bot_token",
+      "question": "BOT_TOKEN не задан / неверный токен",
+      "answer": "1. Открой @BotFather → /mybots → твой бот → API Token.\n2. Скопируй токен в .env: BOT_TOKEN=... или VIBECODING_TOKEN=... (Bothost)\n3. Не коммить .env в GitHub — это секрет.\n4. Перезапусти бота после смены токена.\n5. Если токен светился публично — в BotFather сделай Revoke и получи новый.\n6. На Bothost: пользовательские переменные → VIBECODING_TOKEN → redeploy."
+    },
+    {
+      "id": "port_busy",
+      "question": "Порт занят (Address already in use)",
+      "answer": "1. Закрой старый терминал, где уже запущен сервер.\n2. Windows: найди процесс — netstat -ano | findstr :8000\n3. Заверши процесс: taskkill /PID номер /F\n4. Или смени порт в настройках проекта (например 8001).\n5. Перезапусти Cursor, если терминалы зависли.\n6. Один проект = один запущенный сервер на одном порту."
+    },
+    {
+      "id": "deploy_stale",
+      "question": "Код на GitHub обновил, а бот показывает старое",
+      "answer": "1. Убедись, что на GitHub на ветке main и нажал Commit changes.\n2. Bothost → перезапуск (синие стрелки) или молния (автодеплой).\n3. Подожди 2–3 минуты — сборка не мгновенная.\n4. Проверь логи: должно быть «Run polling» после перезапуска.\n5. В Telegram нажми кнопку заново — старые сообщения не обновляются сами.\n6. Цепочка: ПК → GitHub → Bothost → Telegram. Пока не зальёшь на GitHub — на сервере старое."
+    }
+  ]
+}

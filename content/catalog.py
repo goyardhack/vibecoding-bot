@@ -94,3 +94,17 @@ class LessonCatalog:
             if module.id == module_id:
                 return module
         return None
+
+    def get_continue_lesson(
+        self,
+        completed: set[int],
+        has_pro: bool,
+        purchased: set[int],
+    ) -> Lesson | None:
+        for lesson_id in sorted(self._lessons_by_id):
+            if lesson_id in completed:
+                continue
+            lesson = self._lessons_by_id[lesson_id]
+            if lesson.access != "pro" or has_pro or lesson_id in purchased:
+                return lesson
+        return None

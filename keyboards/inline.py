@@ -6,9 +6,17 @@ from content.catalog import Lesson, LessonCatalog, Module
 def main_menu_keyboard() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
         keyboard=[
+            [KeyboardButton(text="▶️ Продолжить обучение")],
             [KeyboardButton(text="📚 Обучение")],
-            [KeyboardButton(text="📊 Мой прогресс"), KeyboardButton(text="⭐ PRO доступ")],
-            [KeyboardButton(text="❓ Помощь")],
+            [
+                KeyboardButton(text="🎯 Промпты Cursor"),
+                KeyboardButton(text="🛠 Ошибки новичков"),
+            ],
+            [
+                KeyboardButton(text="📊 Мой прогресс"),
+                KeyboardButton(text="📅 Задание дня"),
+            ],
+            [KeyboardButton(text="⭐ PRO доступ"), KeyboardButton(text="❓ Помощь")],
         ],
         resize_keyboard=True,
     )

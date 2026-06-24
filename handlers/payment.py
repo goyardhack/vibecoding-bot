@@ -1,4 +1,5 @@
 from aiogram import F, Router
+from aiogram.filters import Command
 from aiogram.types import CallbackQuery, LabeledPrice, Message, PreCheckoutQuery
 
 from config import (
@@ -6,13 +7,18 @@ from config import (
     PRO_DESCRIPTION,
     PRO_PRICE_STARS,
     PRO_TITLE,
+    PROMPTS_DESCRIPTION,
+    PROMPTS_PRICE_STARS,
+    PROMPTS_TITLE,
 )
 from content.catalog import LessonCatalog
 from database.db import (
     grant_lesson_purchase,
     grant_pro,
+    grant_prompts,
     save_purchase,
     user_has_pro,
+    user_has_prompts_access,
 )
 from keyboards.inline import main_menu_keyboard, pro_offer_keyboard
 
@@ -23,20 +29,23 @@ PRO_INFO = (
     "<b>⭐ PRO доступ</b>\n\n"
     "Что входит:\n"
     "• Все 10 платных уроков сразу\n"
+    "• 6 готовых промптов для Cursor\n"
     "• Продвинутые темы: промпты, деплой, продажи, Python, API\n"
     "• Доступ навсегда после оплаты\n\n"
-    f"Подписка: <b>{PRO_PRICE_STARS} Stars</b> — все уроки\n"
-    f"Один урок: <b>{LESSON_PRICE_STARS} Stars</b> — только выбранный\n\n"
+    f"Подписка: <b>{PRO_PRICE_STARS} Stars</b> — всё включено\n"
+    f"Один урок: <b>{LESSON_PRICE_STARS} Stars</b> — только выбранный\n"
+    f"Только промпты: <b>{PROMPTS_PRICE_STARS} Stars</b> — без уроков\n\n"
     "Оплата прямо в Telegram."
 )
 
 
 @router.message(F.text == "⭐ PRO доступ")
+@router.message(Command("pro"))
 async def show_pro(message: Message) -> None:
     has_pro = await user_has_pro(message.from_user.id)
     if has_pro:
         await message.answer(
-            "У тебя уже есть ⭐ PRO доступ. Все уроки открыты!",
+            "У тебя уже есть ⭐ PRO доступ. Все уроки и промпты открыты!",
             reply_markup=main_menu_keyboard(),
         )
         return
@@ -89,6 +98,23 @@ async def buy_lesson(callback: CallbackQuery) -> None:
     await callback.answer()
 
 
+@router.callback_query(F.data == "buy_prompts")
+async def buy_prompts(callback: CallbackQuery) -> None:
+    if await user_has_prompts_access(callback.from_user.id):
+        await callback.answer("Промпты уже доступны", show_alert=True)
+        return
+
+    await callback.message.answer_invoice(
+        title=PROMPTS_TITLE,
+        description=PROMPTS_DESCRIPTION,
+        payload="prompts_access",
+        currency="XTR",
+        prices=[LabeledPrice(label="Промпты Cursor", amount=PROMPTS_PRICE_STARS)],
+        provider_token="",
+    )
+    await callback.answer()
+
+
 @router.callback_query(F.data == "buy_lesson_menu")
 async def buy_lesson_menu(callback: CallbackQuery) -> None:
     has_pro = await user_has_pro(callback.from_user.id)
@@ -109,6 +135,10 @@ async def buy_lesson_menu(callback: CallbackQuery) -> None:
 async def pre_checkout(query: PreCheckoutQuery) -> None:
     payload = query.invoice_payload
     if payload == "pro_access_full":
+        await query.answer(ok=True)
+        return
+
+    if payload == "prompts_access":
         await query.answer(ok=True)
         return
 
@@ -137,7 +167,23 @@ async def successful_payment(message: Message) -> None:
         await grant_pro(message.from_user.id)
         await message.answer(
             "🎉 <b>PRO доступ активирован!</b>\n\n"
-            "Все платные уроки открыты. Нажми 📚 Обучение и продолжай.",
+            "Все платные уроки и промпты для Cursor открыты. "
+            "Нажми 📚 Обучение или 🎯 Промпты Cursor.",
+            reply_markup=main_menu_keyboard(),
+        )
+        return
+
+    if payload == "prompts_access":
+        await save_purchase(
+            telegram_id=message.from_user.id,
+            stars_amount=payment.total_amount,
+            payment_id=payment.telegram_payment_charge_id,
+            purchase_type="prompts",
+        )
+        await grant_prompts(message.from_user.id)
+        await message.answer(
+            "🎉 <b>Промпты для Cursor открыты!</b>\n\n"
+            "Нажми 🎯 Промпты Cursor и выбери нужный.",
             reply_markup=main_menu_keyboard(),
         )
         return

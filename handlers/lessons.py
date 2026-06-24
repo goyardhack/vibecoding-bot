@@ -1,14 +1,17 @@
 from aiogram import F, Router
-from aiogram.types import CallbackQuery, Message
+from aiogram.filters import Command
+from aiogram.types import CallbackQuery, InlineKeyboardMarkup, Message
 
-from config import LESSON_PRICE_STARS, PRO_PRICE_STARS
+from config import LESSON_PRICE_STARS, PRO_PRICE_STARS, SUPPORT_USERNAME
 from content.catalog import Lesson, LessonCatalog
 from database.db import (
     get_completed_lessons,
     get_purchased_lessons,
+    mark_certificate_offered,
     mark_lesson_completed,
     user_has_lesson_access,
     user_has_pro,
+    was_certificate_offered,
 )
 from keyboards.inline import (
     lesson_actions_keyboard,
@@ -49,12 +52,63 @@ def format_lesson(lesson: Lesson, preview: bool = False) -> str:
     return text
 
 
+async def _lesson_reply(
+    telegram_id: int, lesson_id: int
+) -> tuple[str, InlineKeyboardMarkup] | None:
+    lesson = catalog.get_lesson(lesson_id)
+    if not lesson:
+        return None
+
+    has_pro = await user_has_pro(telegram_id)
+    purchased = await get_purchased_lessons(telegram_id)
+    has_access = await user_has_lesson_access(telegram_id, lesson_id, lesson.access)
+
+    if lesson.access == "pro" and not has_access:
+        return (
+            format_lesson(lesson, preview=True),
+            pro_locked_keyboard(PRO_PRICE_STARS, LESSON_PRICE_STARS, lesson_id),
+        )
+
+    next_lesson = catalog.get_next_lesson(lesson_id)
+    return (
+        format_lesson(lesson),
+        lesson_actions_keyboard(lesson, next_lesson, has_pro, purchased),
+    )
+
+
 @router.message(F.text == "📚 Обучение")
+@router.message(Command("learn"))
 async def show_modules(message: Message) -> None:
     await message.answer(
         "Выбери модуль:",
         reply_markup=modules_keyboard(catalog),
     )
+
+
+@router.message(F.text == "▶️ Продолжить обучение")
+@router.message(Command("resume"))
+@router.message(Command("continue"))
+async def continue_learning(message: Message) -> None:
+    completed = await get_completed_lessons(message.from_user.id)
+    has_pro = await user_has_pro(message.from_user.id)
+    purchased = await get_purchased_lessons(message.from_user.id)
+
+    lesson = catalog.get_continue_lesson(completed, has_pro, purchased)
+    if not lesson:
+        await message.answer(
+            "🎉 Все доступные уроки пройдены! Ты красава.\n\n"
+            "Если хочешь открыть PRO-уроки — зайди в ⭐ PRO доступ.",
+            reply_markup=main_menu_keyboard(),
+        )
+        return
+
+    reply = await _lesson_reply(message.from_user.id, lesson.id)
+    if not reply:
+        await message.answer("Урок не найден", reply_markup=main_menu_keyboard())
+        return
+
+    text, keyboard = reply
+    await message.answer(text, reply_markup=keyboard)
 
 
 @router.callback_query(F.data == "modules")
@@ -88,34 +142,13 @@ async def callback_module(callback: CallbackQuery) -> None:
 @router.callback_query(F.data.startswith("lesson:"))
 async def callback_lesson(callback: CallbackQuery) -> None:
     lesson_id = int(callback.data.split(":", 1)[1])
-    lesson = catalog.get_lesson(lesson_id)
-    if not lesson:
+    reply = await _lesson_reply(callback.from_user.id, lesson_id)
+    if not reply:
         await callback.answer("Урок не найден", show_alert=True)
         return
 
-    has_pro = await user_has_pro(callback.from_user.id)
-    purchased = await get_purchased_lessons(callback.from_user.id)
-    has_access = await user_has_lesson_access(
-        callback.from_user.id, lesson_id, lesson.access
-    )
-
-    if lesson.access == "pro" and not has_access:
-        await callback.message.edit_text(
-            format_lesson(lesson, preview=True),
-            reply_markup=pro_locked_keyboard(
-                PRO_PRICE_STARS, LESSON_PRICE_STARS, lesson_id
-            ),
-        )
-        await callback.answer()
-        return
-
-    next_lesson = catalog.get_next_lesson(lesson_id)
-    await callback.message.edit_text(
-        format_lesson(lesson),
-        reply_markup=lesson_actions_keyboard(
-            lesson, next_lesson, has_pro, purchased
-        ),
-    )
+    text, keyboard = reply
+    await callback.message.edit_text(text, reply_markup=keyboard)
     await callback.answer()
 
 
@@ -147,6 +180,16 @@ async def callback_done(callback: CallbackQuery) -> None:
             reply_markup=lessons_keyboard(module, completed, has_pro, purchased),
         )
 
+    if (
+        len(completed) >= catalog.total_lessons
+        and not await was_certificate_offered(callback.from_user.id)
+    ):
+        await mark_certificate_offered(callback.from_user.id)
+        await callback.message.answer(
+            "🎉 <b>Поздравляем! Вы прошли VibeCode!</b>\n\n"
+            f"Для получения сертификата напиши @{SUPPORT_USERNAME}"
+        )
+
 
 @router.callback_query(F.data == "menu")
 async def callback_menu(callback: CallbackQuery) -> None:
@@ -155,12 +198,14 @@ async def callback_menu(callback: CallbackQuery) -> None:
 
 
 @router.message(F.text == "📊 Мой прогресс")
+@router.message(Command("progress"))
 async def show_progress(message: Message) -> None:
     completed = await get_completed_lessons(message.from_user.id)
     has_pro = await user_has_pro(message.from_user.id)
     purchased = await get_purchased_lessons(message.from_user.id)
     total = catalog.total_lessons
     done = len(completed)
+    percent = round(done / total * 100) if total else 0
 
     last_lesson = max(completed) if completed else 0
     last_title = ""
@@ -177,16 +222,16 @@ async def show_progress(message: Message) -> None:
 
     text = (
         f"<b>Твой прогресс</b>\n\n"
-        f"Пройдено: <b>{done}/{total}</b> уроков\n"
+        f"Пройдено: <b>{done}/{total}</b> уроков — <b>{percent}%</b>\n"
         f"Статус: {status}\n"
     )
     if last_title:
         text += f"Последний урок: <b>{last_lesson}. {last_title}</b>\n"
 
     if done == 0:
-        text += "\nНачни с модуля «Старт — VibeCoding» → урок 1."
+        text += "\nНажми ▶️ Продолжить обучение — начнёшь с урока 1."
     elif done < total:
-        text += "\nПродолжай — нажми 📚 Обучение."
+        text += "\nПродолжай — нажми ▶️ Продолжить обучение."
     else:
         text += "\n🎉 Все уроки пройдены! Ты красава."
 

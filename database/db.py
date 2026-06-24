@@ -49,7 +49,31 @@ async def init_db() -> None:
             )
             """
         )
+        await db.execute(
+            """
+            CREATE TABLE IF NOT EXISTS daily_notifications (
+                telegram_id INTEGER NOT NULL,
+                practice_day INTEGER NOT NULL,
+                sent_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (telegram_id, practice_day)
+            )
+            """
+        )
+        await _migrate_users(db)
         await db.commit()
+
+
+async def _migrate_users(db: aiosqlite.Connection) -> None:
+    cursor = await db.execute("PRAGMA table_info(users)")
+    columns = {row[1] for row in await cursor.fetchall()}
+    if "has_prompts" not in columns:
+        await db.execute(
+            "ALTER TABLE users ADD COLUMN has_prompts INTEGER NOT NULL DEFAULT 0"
+        )
+    if "certificate_offered" not in columns:
+        await db.execute(
+            "ALTER TABLE users ADD COLUMN certificate_offered INTEGER NOT NULL DEFAULT 0"
+        )
 
 
 async def ensure_user(telegram_id: int, username: str | None) -> None:
@@ -79,6 +103,50 @@ async def grant_pro(telegram_id: int) -> None:
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute(
             "UPDATE users SET has_pro = 1 WHERE telegram_id = ?",
+            (telegram_id,),
+        )
+        await db.commit()
+
+
+async def user_has_prompts(telegram_id: int) -> bool:
+    async with aiosqlite.connect(DB_PATH) as db:
+        cursor = await db.execute(
+            "SELECT has_prompts FROM users WHERE telegram_id = ?",
+            (telegram_id,),
+        )
+        row = await cursor.fetchone()
+        return bool(row and row[0])
+
+
+async def grant_prompts(telegram_id: int) -> None:
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            "UPDATE users SET has_prompts = 1 WHERE telegram_id = ?",
+            (telegram_id,),
+        )
+        await db.commit()
+
+
+async def user_has_prompts_access(telegram_id: int) -> bool:
+    if await user_has_pro(telegram_id):
+        return True
+    return await user_has_prompts(telegram_id)
+
+
+async def was_certificate_offered(telegram_id: int) -> bool:
+    async with aiosqlite.connect(DB_PATH) as db:
+        cursor = await db.execute(
+            "SELECT certificate_offered FROM users WHERE telegram_id = ?",
+            (telegram_id,),
+        )
+        row = await cursor.fetchone()
+        return bool(row and row[0])
+
+
+async def mark_certificate_offered(telegram_id: int) -> None:
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            "UPDATE users SET certificate_offered = 1 WHERE telegram_id = ?",
             (telegram_id,),
         )
         await db.commit()
@@ -157,6 +225,37 @@ async def save_purchase(
             VALUES (?, ?, ?, ?, ?)
             """,
             (telegram_id, stars_amount, payment_id, purchase_type, lesson_id),
+        )
+        await db.commit()
+
+
+async def get_all_user_ids() -> list[int]:
+    async with aiosqlite.connect(DB_PATH) as db:
+        cursor = await db.execute("SELECT telegram_id FROM users")
+        rows = await cursor.fetchall()
+        return [row[0] for row in rows]
+
+
+async def was_daily_sent(telegram_id: int, practice_day: int) -> bool:
+    async with aiosqlite.connect(DB_PATH) as db:
+        cursor = await db.execute(
+            """
+            SELECT 1 FROM daily_notifications
+            WHERE telegram_id = ? AND practice_day = ?
+            """,
+            (telegram_id, practice_day),
+        )
+        return await cursor.fetchone() is not None
+
+
+async def mark_daily_sent(telegram_id: int, practice_day: int) -> None:
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            """
+            INSERT OR IGNORE INTO daily_notifications (telegram_id, practice_day)
+            VALUES (?, ?)
+            """,
+            (telegram_id, practice_day),
         )
         await db.commit()
 

@@ -1,0 +1,49 @@
+# Если статус FAILED на Bothost — чеклист
+
+## 1. Смотри ЛОГИ (главное!)
+В панели Bothost нажми иконку «логи» у бота VibeCoding.
+Скопируй последние 10–15 строк красного текста и пришли наставнику.
+
+## 2. Структура на GitHub (частая ошибка!)
+В репозитории файлы должны быть ТАК в корне:
+
+```
+vibecoding-bot/
+├── main.py          ← обязательно
+├── bot.py
+├── requirements.txt
+├── config.py
+├── check_network.py
+├── handlers/
+├── content/
+│   └── lessons.json ← обязательно!
+├── database/
+└── keyboards/
+```
+
+НЕПРАВИЛЬНО (так бывает при загрузке папкой):
+```
+vibecoding-bot/vibecoding-bot/bot.py   ← лишняя вложенность!
+```
+
+Проверь на github.com/goyardhack/vibecoding-bot — bot.py в корне?
+
+## 3. Настройки Bothost
+- Главный файл: main.py (или bot.py)
+- Ветка: main
+- Библиотека: aiogram / Python
+
+## 4. Переменные окружения
+ADMIN_IDS=1001466971
+PRO_PRICE_STARS=450
+LESSON_PRICE_STARS=50
+DATA_DIR=/app/data
+
+BOT_PROXY — пусто / не добавлять
+
+## 5. Один токен = один запуск
+Если бот запущен локально (ЗАПУСТИТЬ-БОТА.bat) — останови.
+Два процесса с одним токеном = failed.
+
+## 6. После правок на GitHub
+Bothost → Пересобрать / Redeploy
