@@ -40,6 +40,12 @@ ADMIN_IDS = {
 
 PRO_PRICE_STARS = int(os.getenv("PRO_PRICE_STARS", "450"))
 LESSON_PRICE_STARS = int(os.getenv("LESSON_PRICE_STARS", "50"))
+PROMPTS_PRICE_STARS = int(os.getenv("PROMPTS_PRICE_STARS", "250"))
+PROMPTS_TITLE = os.getenv("PROMPTS_TITLE", "Промпты для Cursor")
+PROMPTS_DESCRIPTION = os.getenv(
+    "PROMPTS_DESCRIPTION",
+    "6 готовых промптов для Cursor — доступ навсегда.",
+)
 PRO_TITLE = os.getenv("PRO_TITLE", "PRO: Полный доступ к курсу")
 PRO_DESCRIPTION = os.getenv(
     "PRO_DESCRIPTION",
@@ -48,3 +54,6 @@ PRO_DESCRIPTION = os.getenv(
 
 # Контакт в разделе «Помощь» (можно задать в Bothost без правки кода)
 SUPPORT_USERNAME = os.getenv("SUPPORT_USERNAME", "amgdurov").lstrip("@")
+
+DAILY_PRACTICE_HOUR = int(os.getenv("DAILY_PRACTICE_HOUR", "10"))
+DAILY_PRACTICE_TIMEZONE = os.getenv("DAILY_PRACTICE_TIMEZONE", "Europe/Moscow")
